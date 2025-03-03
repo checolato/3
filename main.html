@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interactive Map</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: auto; /* Allow scrolling */
+    }
+    body {
+      font-family: courier;
+      text-align: center;
+      background-image: url('basemap.jpg');
+      background-size: 7500px 6000px;
+      background-repeat: no-repeat;
+      background-position: top left;
+      min-height: 6000px;
+      min-width: 7500px;
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-size: 25px;
+      position: fixed;
+      top: 10px;
+      left: 10px;
+    }
+    ul#list {
+      position: fixed;
+      top: 40px;
+      left: 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 20px;
+      visibility: hidden;
+      background-color: rgba(255, 255, 255, 0.8);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 3000;
+    }
+    #customCursor {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: red;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1000;
+      transform: translate(-50%, -50%);
+    }
+    #rippleEffect {
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      border: 2px solid red;
+      border-radius: 50%;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 999;
+      transform: translate(-50%, -50%);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    .popup {
+      position: absolute;
+      background-color: white;
+      padding: 20px;
+      border: 1px solid black;
+      box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
+      display: none;
+      z-index: 10;
+      font-family: courier;
+      font-size: 14px;
+      width: 450px;  
+      height: auto;
+      text-align: left; 
+    }
+    .popup .title {
+      color: red;
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    /* All pollution icons start hidden and will be positioned absolutely */
+    .pollution-icon {
+      position: absolute;
+      overflow: hidden;
+      cursor: pointer;
+      display: none;
+    }
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.3);
+      transform: scale(0);
+      animation: ripple-animation 0.6s ease-out;
+      pointer-events: none;
+    }
+    @keyframes ripple-animation {
+      to {
+        transform: scale(4);
+        opacity: 0;
+      }
+    }
+    /* Positioning for each icon – adjust these values as needed */
+    #laundryshop {
+      top: 1250px;
+      left: 2450px;
+      width: 250px;
+      height: 170px;
+    }
+    #paintshop {
+      top: 800px;
+      left: 2650px;
+      width: 372px;
+      height: 328px;
+    }
+    #gasstation {
+      top: 350px;
+      left: 5600px;
+      width: 342px;
+      height: 278px;
+    }
+    #distributioncenter {
+      top: 4850px;
+      left: 5px;
+      width: 1134px;
+      height: 842px;
+    }
+    #poultry {
+      top: 3800px;
+      left: 500px;
+      width: 1208px;
+      height: 766px;
+    }
+    #bloodcenter {
+      top: 4800px;
+      left: 2000px;
+      width: 1548px;
+      height: 854px;
+    }
+    
+    #tree {
+      top: 1000px;
+      left: 1300px;
+      width: 72px;
+      height: 92px;
+    }
+
+    #tree_2 {
+      top: 5000px;
+      left: 1300px;
+      width: 378px;
+      height: 292px;
+    }
+
+    #tree_3 {
+      top: 2600px;
+      left: 5600px;
+      width: 534px;
+      height: 730px;
+    }
+
+    #highway {
+      top: -1px;
+      left: 6580px;
+      position: absolute;
+      width: 984px;
+      height: 1191px;
+    }
+    #trashcan {
+      top: 800px;
+      left: 900px;
+      width: 114px;
+      height: 173px;
+    }
+    #airplane {
+      top: 2500px;
+      left: 5000px;
+      width: 250px;
+      height: 150px;
+    }
+    #cigarett {
+      top: 1250px;
+      left: 2300px;
+      width: 82px;
+      height: 48.5px;
+    }
+    #river {
+      top: 4400px;
+      left: 2800px;
+      width: 4501px;
+      height: 1893px;
+    }
+    /* Wind simulation remains full-map size but won't interfere */
+    #wind {
+      top: -15px;
+      left: -10px;
+      width: 7500px;
+      height: 6000px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    h2 {
+      color: red;
+      font-size: 24px;
+      font-weight: bold;
+      top: 1500px;
+      left: 1800px;
+      background-color: transparent;
+      position: absolute;
+      padding: 20px;
+      height: 50px;
+      width: 300px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1 id="demo"></h1>
+
+  <ul id="list">
+    <li><button onclick="toggleLivingIcons()">Living</button></li>
+    <li><button onclick="toggleArtifactsIcons()">Artifacts</button></li>
+    <li><button onclick="toggleEnvironmentIcons()">Environment</button></li>
+  </ul>
+
+  <!-- Popup -->
+  <div id="popup" class="popup">
+    <div id="popup-content">
+      <!-- Content gets updated dynamically -->
+    </div>
+    <button onclick="togglePopup()">Close</button>
+  </div>
+
+  <!-- Custom cursor and ripple effect -->
+  <div id="customCursor"></div>
+  <div id="rippleEffect"></div>
+
+  <!-- Icons grouped by layer -->
+  <div class="living-layer">
+    <img src="laundryshop.png" id="laundryshop" class="pollution-icon" data-type="laundryshop">
+    <img src="paintshop.png" id="paintshop" class="pollution-icon" data-type="paintshop">
+    <img src="gasstation.png" id="gasstation" class="pollution-icon" data-type="gasstation">
+    <img src="distributioncenter.png" id="distributioncenter" class="pollution-icon" data-type="distributioncenter">
+    <img src="poultry.png" id="poultry" class="pollution-icon" data-type="poultry">
+    <img src="bloodcenter.png" id="bloodcenter" class="pollution-icon" data-type="bloodcenter">
+  </div>
+  
+  <div class="environment-layer">
+    <img src="tree.png" id="tree" class="pollution-icon" data-type="tree">
+    <img src="tree_2.png" id="tree_2" class="pollution-icon" data-type="tree_2">
+    <img src="tree_3.png" id="tree_3" class="pollution-icon" data-type="tree_3">
+    <img src="river.png" id="river" class="pollution-icon" data-type="river">
+    <img src="wind.png" id="wind" class="pollution-icon" data-type="wind">
+  </div>
+  
+  <div class="artifacts-layer">
+    <img src="highway.png" id="highway" class="pollution-icon" data-type="highway">
+    <img src="trashcan.png" id="trashcan" class="pollution-icon" data-type="trashcan">
+    <img src="airplane.png" id="airplane" class="pollution-icon" data-type="airplane">
+    <img src="cigarett.png" id="cigarett" class="pollution-icon" data-type="cigarett">
+  </div>
+
+  <script>
+    var i = 0;
+    var txt = '290 Smith St., Providence, Rhode Island 02908 on July 21';
+    var speed = 150;
+
+    window.onload = function() {
+      // Disable scroll restoration so the browser doesn't override the desired scroll position
+      if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+      }
+      // Scroll to the desired starting position
+      window.scrollTo(1250, 1320);
+      
+      typeWriter();
+      attachIconEvents();
+      scrollToSection();
+      animateAirplane();
+    };
+
+    // Attach click events to all pollution icons
+    function attachIconEvents() {
+      const allIcons = document.querySelectorAll('.pollution-icon');
+      allIcons.forEach(icon => {
+        icon.addEventListener('click', function(event) {
+          const type = icon.getAttribute('data-type');
+          rippleEffect(event, icon);
+          togglePopup(type);
+        });
+      });
+    }
+
+    function typeWriter() {
+      if (i < txt.length) {
+        document.getElementById("demo").innerHTML += txt.charAt(i);
+        i++;
+        setTimeout(typeWriter, speed);
+      } else {
+        document.getElementById("list").style.visibility = "visible";
+      }
+    }
+
+    function scrollToSection() {
+      window.scrollTo(1250, 1320);
+    }
+
+    // Toggle the popup on/off and update its content
+    function togglePopup(type) {
+      const popup = document.getElementById('popup');
+      const content = document.getElementById('popup-content');
+      const icon = type ? document.getElementById(type) : null;
+
+      if (type && icon) {
+        const rect = icon.getBoundingClientRect();
+        const popupOffset = 2;
+        // Only position popup near the icon if it's not our environment dialog
+        if (type !== 'environmentDialog') {
+          popup.style.left = `${rect.left + window.scrollX + rect.width + popupOffset}px`;
+          popup.style.top = `${rect.top + window.scrollY}px`;
+        }
+        let pollutionInfo = '';
+
+        switch (type) {
+          case 'laundryshop':
+            pollutionInfo = `
+              <p><span class="title"><strong>Coin-Up Laundry Store</strong></span><br>
+              <strong>Pollution Source</strong>: Detergent Waste<br>
+              <strong>Composition</strong>: Perchloroethylene<br>
+              <strong>Particle Size</strong>: 0.5 - 50 µm<br>
+              <strong>Travel Distance</strong>: 10 - 50 miles</p>
+            `;
+            break;
+          case 'paintshop':
+            pollutionInfo = `
+              <p><span class="title"><strong>The Paint Shoppes</strong></span><br>
+              <strong>Pollution Source</strong>: Paint<br>
+              <strong>Composition</strong>: VOC (Volatile Organic Compounds)<br>
+              <strong>Particle Size</strong>: 1 - 10 µm<br>
+              <strong>Travel Distance</strong>: >200 miles</p>
+            `;
+            break;
+          case 'gasstation':
+            pollutionInfo = `
+              <p><span class="title"><strong>Gako Gas Station</strong></span><br>
+              <strong>Pollution Source</strong>: Fuel Emissions (Benzene, Toluene, Ethylbenzene, Xylene - BTEX)<br>
+              <strong>Composition</strong>: VOC<br>
+              <strong>Particle Size</strong>: 0.0001197 µm<br>
+              <strong>Travel Distance</strong>: >10 miles</p>
+            `;
+            break;
+          case 'distributioncenter':
+            pollutionInfo = `
+              <p><span class="title"><strong>Coca-Cola Distribution Center</strong></span><br>
+              <strong>Pollution Source</strong>: Trucks & Forklifts<br>
+              <strong>Composition</strong>: NOx (Nitrogen Dioxide)<br>
+              <strong>Particle Size</strong>: 0.0001197 µm<br>
+              <strong>Travel Distance</strong>: >100 miles</p>
+            `;
+            break;
+          case 'poultry':
+            pollutionInfo = `
+              <p><span class="title"><strong>Warwick Poultry</strong></span><br>
+              <strong>Pollution Source</strong>: Butchering & Processing<br>
+              <strong>Composition</strong>: Nitrous Oxide (N₂O), Ammonia, Methane, Dust (skin fragments, feed particles)<br>
+              <strong>Particle Size</strong>: 1 - 100 µm<br>
+              <strong>Travel Distance</strong>: 100 - 1000 miles</p>
+            `;
+            break;
+          case 'bloodcenter':
+            pollutionInfo = `
+              <p><span class="title"><strong>Blood Center</strong></span><br>
+              <strong>Pollution Source</strong>: Biological Waste<br>
+              <strong>Composition</strong>: Bloodborne Pathogens (Hepatitis B, Hepatitis C, HIV), 
+              Chemical Disinfectants (Formaldehyde, Glutaraldehyde), Pharmaceuticals, Microorganisms<br>
+              <strong>Particle Size</strong>: 0.02 - 1 µm (viruses), 0.5 - 5 µm (bacteria), 10 - 100 µm (dried blood, tissue fragments)<br>
+              <strong>Travel Distance</strong>: Varies (depends on air/disposal systems)</p>
+            `;
+            break;
+          case 'tree':
+            pollutionInfo = `
+              <p><span class="title"><strong>Trees</strong></span><br>
+              <strong>Pollution Source</strong>: Natural Emissions<br>
+              <strong>Composition</strong>: Isoprene, Monoterpenes, Methanol, Acetone, Pollen, Spores<br>
+              <strong>Particle Size</strong>: 10 - 100 µm<br>
+              <strong>Travel Distance</strong>: >20 miles</p>
+            `;
+            break;
+          case 'tree_2':
+            pollutionInfo = `
+              <p><span class="title"><strong>Trees</strong></span><br>
+              <strong>Pollution Source</strong>: Natural Emissions<br>
+              <strong>Composition</strong>: Isoprene, Monoterpenes, Methanol, Acetone, Pollen, Spores<br>
+              <strong>Particle Size</strong>: 10 - 100 µm<br>
+              <strong>Travel Distance</strong>: >20 miles</p>
+            `;
+            break;
+          case 'tree_3':
+            pollutionInfo = `
+              <p><span class="title"><strong>Trees</strong></span><br>
+              <strong>Pollution Source</strong>: Natural Emissions<br>
+              <strong>Composition</strong>: Isoprene, Monoterpenes, Methanol, Acetone, Pollen, Spores<br>
+              <strong>Particle Size</strong>: 10 - 100 µm<br>
+              <strong>Travel Distance</strong>: >20 miles</p>
+            `;
+            break;
+          case 'highway':
+            pollutionInfo = `
+              <p><span class="title"><strong>I-95 Highway</strong></span><br>
+              <strong>Pollution Source</strong>: Road Construction & Traffic<br>
+              <strong>Composition</strong>: Particulate Matter, Polycyclic Aromatic Hydrocarbons (PAHs), Heavy Metals<br>
+              <strong>Particle Sizes</strong>: 
+              - Dust: 0.1 - 100 µm<br>
+              - Diesel Exhaust Particles: 0.01 - 0.5 µm<br>
+              - Silica Dust: 0.5 - 5 µm<br>
+              <strong>Travel Distance</strong>: >100 miles</p>
+            `;
+            break;
+          case 'trashcan':
+            pollutionInfo = `
+              <p><span class="title"><strong>Street Trashcan</strong></span><br>
+              <strong>Pollution Source</strong>: Rubbish Decomposition<br>
+              <strong>Composition</strong>: Dioxins, Benzene, PCBs (Polychlorinated Biphenyls)<br>
+              <strong>Particle Size</strong>: 75 µm<br>
+              <strong>Travel Distance</strong>: Persistent in environment (remains in soil, water, and air for years)</p>
+            `;
+            break;
+          case 'airplane':
+            pollutionInfo = `
+              <p><span class="title"><strong>Airplane</strong></span><br>
+              <strong>Pollution Source</strong>: Jet Engine Emissions<br>
+              <strong>Composition</strong>: Carbon Dioxide (CO₂), Nitrogen Oxides (NOx), Sulfur Oxides (SOx), Particulate Matter<br>
+              <strong>Particle Size</strong>: 0.000232 µm<br>
+              <strong>Travel Distance</strong>: >100 miles</p>
+            `;
+            break;
+          case 'cigarett':
+            pollutionInfo = `
+              <p><span class="title"><strong>Smoking Cigarette</strong></span><br>
+              <strong>Pollution Source</strong>: Tobacco Combustion<br>
+              <strong>Composition</strong>: Nicotine, Tar, Carbon Monoxide, Particulate Matter<br>
+              <strong>Particle Size</strong>: ~0.5 µm<br>
+              <strong>Travel Distance</strong>: >30 miles</p>
+            `;
+            break;
+          case 'river':
+            pollutionInfo = `
+              <p><span class="title"><strong>River</strong></span><br>
+              <strong>Pollution Source</strong>: Industrial and Agriculture Discharge<br>
+              <strong>Composition</strong>: Nitrates, Phosphates, Pesticides, Heavy Metals<br>
+              <strong>Particle Size</strong>: Varies from dissolved ions to particulates (1 - 50 µm)<br>
+              <strong>Travel Distance</strong>: Up to 100 miles downstream</p>
+            `;
+            break;
+          default:
+            pollutionInfo = `<p>No pollution data available.</p>`;
+            break;
+        }
+        content.innerHTML = pollutionInfo;
+        popup.style.display = 'block';
+      } else {
+        popup.style.display = 'none';
+      }
+    }
+
+    // New function to show an environment dialog immediately after toggling the layer
+    function showEnvironmentDialog() {
+      const popup = document.getElementById('popup');
+      const content = document.getElementById('popup-content');
+      content.innerHTML = `<p><strong>Wind and air quality</strong><br>
+                           Wind plays a crucial role in how air pollution is distributed. 
+                           It can help disperse pollutants away from their sources, 
+                           reducing local concentrations, or transport them over long distances 
+                           to other areas. Our wind simulation layer shows these patterns in action, 
+                           giving you insight into how wind speed and direction affect air quality 
+                           across the map.</p>`;
+      // Center the popup on the screen
+      popup.style.left = '50%';
+      popup.style.top = '50%';
+      popup.style.transform = 'translate(-50%, -50%)';
+      popup.style.display = 'block';
+    }
+
+    // Update custom cursor and check proximity for ripple effect
+    document.addEventListener('mousemove', function(e) {
+      const cursor = document.getElementById('customCursor');
+      const ripple = document.getElementById('rippleEffect');
+      cursor.style.left = `${e.pageX}px`;
+      cursor.style.top = `${e.pageY}px`;
+      ripple.style.left = `${e.pageX}px`;
+      ripple.style.top = `${e.pageY}px`;
+      checkProximity(e.pageX, e.pageY);
+    });
+
+    function checkProximity(mouseX, mouseY) {
+      const icons = document.querySelectorAll('.pollution-icon');
+      let showRipple = false;
+      icons.forEach(icon => {
+        if (!icon) return;
+        const rect = icon.getBoundingClientRect();
+        const iconX = rect.left + window.scrollX + rect.width / 2;
+        const iconY = rect.top + window.scrollY + rect.height / 2;
+        const distance = Math.sqrt(Math.pow(mouseX - iconX, 2) + Math.pow(mouseY - iconY, 2));
+        if (distance < 100) {
+          showRipple = true;
+        }
+      });
+      if (showRipple) {
+        showRippleEffect();
+      } else {
+        hideRippleEffect();
+      }
+    }
+
+    // Create a ripple effect on click for an icon
+    function rippleEffect(event, element) {
+      const ripple = document.createElement('span');
+      ripple.classList.add('ripple');
+      const rect = element.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height);
+      ripple.style.width = ripple.style.height = `${size}px`;
+      ripple.style.left = `${event.clientX - rect.left - size / 2}px`;
+      ripple.style.top = `${event.clientY - rect.top - size / 2}px`;
+      element.appendChild(ripple);
+      setTimeout(() => {
+        ripple.remove();
+      }, 600);
+    }
+
+    function showRippleEffect() {
+      const ripple = document.getElementById('rippleEffect');
+      ripple.style.opacity = 1;
+      ripple.style.transform = 'translate(-50%, -50%) scale(1.5)';
+    }
+
+    function hideRippleEffect() {
+      const ripple = document.getElementById('rippleEffect');
+      ripple.style.opacity = 0;
+      ripple.style.transform = 'translate(-50%, -50%) scale(1)';
+    }
+
+    // Helper function to toggle a layer's icons
+    function toggleLayer(layerClass) {
+      const icons = document.querySelectorAll('.' + layerClass + ' .pollution-icon');
+      if (icons.length === 0) return;
+      // Check visibility based on the first icon (they all share the same display state)
+      const currentlyVisible = icons[0].style.display === 'block';
+      icons.forEach(icon => {
+        icon.style.display = currentlyVisible ? 'none' : 'block';
+      });
+    }
+
+    // Toggle functions for each layer
+    function toggleLivingIcons() {
+      toggleLayer('living-layer');
+    }
+
+    function toggleArtifactsIcons() {
+      toggleLayer('artifacts-layer');
+      // Trigger the airplane animation if the artifacts layer is being turned on
+      const airplane = document.getElementById('airplane');
+      if (airplane.style.display === 'block') {
+        animateAirplane();
+      }
+    }
+
+    function toggleEnvironmentIcons() {
+      toggleLayer('environment-layer');
+      const icons = document.querySelectorAll('.environment-layer .pollution-icon');
+      // Check if the environment icons are now visible and then show the dialog
+      if (icons.length && icons[0].style.display === 'block') {
+        showEnvironmentDialog();
+      }
+    }
+
+    function animateAirplane() {
+      const airplane = document.getElementById('airplane');
+      
+      // Remove any previous transition so we can instantly set the starting position.
+      airplane.style.transition = 'none';
+      // Place the airplane at the top left corner of the document.
+      airplane.style.left = '0px';
+      airplane.style.top = '0px';
+      
+      // Force reflow
+      airplane.offsetHeight;
+      
+      // Set the transition for the animation (adjust duration as needed)
+      airplane.style.transition = 'left 35s linear, top 35s linear';
+      
+      // Calculate target position based on the entire document's dimensions
+      const targetLeft = document.documentElement.scrollWidth - airplane.offsetWidth;
+      const targetTop = document.documentElement.scrollHeight - airplane.offsetHeight;
+      
+      // Animate the airplane to the bottom right of the document
+      airplane.style.left = targetLeft + 'px';
+      airplane.style.top = targetTop + 'px';
+      
+      setTimeout(animateAirplane, 350000);
+    }
+  </script>
+</body>
+</html>
